@@ -1,0 +1,23 @@
+.esri-DnD .instructions {
+	border: 1px dashed #666;
+	padding: 5px;
+}
+
+.esri-DnD-target:before {
+	content: ' ';
+	position: absolute;
+	background-color: rgba(0,0,0,.25);
+	width: 100%;
+	height: 100%;
+	z-index: 1000;
+}
+
+.esri-DnD .alert-info {
+	background-color: #fcf8e3;
+	color: #c09853;
+	border: 1px dashed #c09853;
+}
+
+.esri-DnD .off {
+	display: none;
+}
