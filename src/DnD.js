@@ -180,7 +180,7 @@ define([
           this.droppedItems[file.name] = new DroppedItem({
             map: this.map,
             label: file.name,
-            itemId: 'csvLayer-' + file.name,
+            itemId: file.name,
             removeCallback: lang.hitch(this, 'removeDroppedItem')
           }).placeAt(this.containerNode);
           this.droppedItems[file.name].startup();
@@ -436,7 +436,7 @@ define([
 
           var featureLayer = new FeatureLayer(featureCollection, {
             infoTemplate: infoTemplate,
-            id: 'csvLayer-' + filename
+            id: filename
           });
           featureLayer.__popupInfo = popupInfo;
           this.map.addLayer(featureLayer);
