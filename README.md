@@ -1,4 +1,4 @@
-dojo-esri-dnd-js
+dojo-esri-dnd-widget
 =================
 Drag-and-Drop widget for the js api. Adapted from [Drag and drop to display data](https://developers.arcgis.com/javascript/jssamples/exp_dragdrop.html).
 
