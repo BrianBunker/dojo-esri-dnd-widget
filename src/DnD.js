@@ -3,6 +3,7 @@ define([
 
   'esri/graphic',
   'esri/InfoTemplate',
+  'esri/urlUtils',
 
   'esri/geometry/Point',
   'esri/geometry/Multipoint',
@@ -21,6 +22,7 @@ define([
   'dojo/on',
 
   'dojox/data/CsvStore',
+  'dojox/encoding/base64',
 
   'dijit/_WidgetBase',
   'dijit/_TemplatedMixin',
@@ -32,13 +34,13 @@ define([
   './DnD/DroppedItem'
 ], function(
   put,
-  Graphic, InfoTemplate,
+  Graphic, InfoTemplate, urlUtils,
   Point, Multipoint, webMercatorUtils,
   ArcGISDynamicMapServiceLayer, ArcGISImageServiceLayer, FeatureLayer,
   PictureMarkerSymbol,
   array, declare, lang,
   on,
-  CsvStore,
+  CsvStore, base64,
   _WidgetBase, _TemplatedMixin, _WidgetsInTemplateMixin,
   template, css,
   DroppedItem
@@ -53,8 +55,8 @@ define([
 
     // Properties to be sent into constructor
     //list of lat and lon field strings
-    latFieldStrings: ["lat", "latitude", "y", "ycenter"],
-    longFieldStrings: ["lon", "long", "longitude", "x", "xcenter"],
+    latFieldStrings: ['lat', 'latitude', 'y', 'ycenter'],
+    longFieldStrings: ['lon', 'long', 'longitude', 'x', 'xcenter'],
     iconSize: 23,
     postCreate: function() {
       // summary:
@@ -91,7 +93,7 @@ define([
       // http://www.html5rocks.com/features/file
       // http://www.html5rocks.com/tutorials/dnd/basics/
       // https://developer.mozilla.org/En/DragDrop/Drag_Operations
-      on(mapCanvas, "dragenter", lang.hitch(this, function(event) {
+      on(mapCanvas, 'dragenter', lang.hitch(this, function(event) {
         // If we don't prevent default behavior here, browsers will
         // perform the default action for the file being dropped i.e,
         // point the page to the file.
@@ -109,13 +111,13 @@ define([
         }
       }));
 
-      on(mapCanvas, "dragover", lang.hitch(this, function(event) {
+      on(mapCanvas, 'dragover', lang.hitch(this, function(event) {
         event.preventDefault();
       }));
-      on(mapCanvas, "drop", lang.hitch(this, 'handleDrop'));
+      on(mapCanvas, 'drop', lang.hitch(this, 'handleDrop'));
 
       // also can drop on widget
-      on(this.domNode, "dragenter", lang.hitch(this, function(event) {
+      on(this.domNode, 'dragenter', lang.hitch(this, function(event) {
         // If we don't prevent default behavior here, browsers will
         // perform the default action for the file being dropped i.e,
         // point the page to the file.
@@ -133,10 +135,10 @@ define([
         }
       }));
 
-      on(this.domNode, "dragover", lang.hitch(this, function(event) {
+      on(this.domNode, 'dragover', lang.hitch(this, function(event) {
         event.preventDefault();
       }));
-      on(this.domNode, "drop", lang.hitch(this, 'handleDrop'));
+      on(this.domNode, 'drop', lang.hitch(this, 'handleDrop'));
     },
     handleDrop: function(event) {
       event.preventDefault();
@@ -147,7 +149,7 @@ define([
         put(this.instructionsNode, '.off');
       }
 
-      console.log("Drop: ", event);
+      console.log('Drop: ', event);
 
       // Reference
       // http://www.html5rocks.com/tutorials/file/dndfiles/
@@ -159,11 +161,11 @@ define([
 
       // File drop?
       if (files && files.length === 1) {
-        console.log("[ FILES ]");
+        console.log('[ FILES ]');
         var file = files[0]; // that's right I'm only reading one file
 
-        console.log("type = ", file.type);
-        if (file.type.indexOf("image/") !== -1) {
+        console.log('type = ', file.type);
+        if (file.type.indexOf('image/') !== -1) {
           // create an entry in the DnD widget UI
           var itemId = file.name + event.layerX + event.layerY;
           this.droppedItems[itemId] = new DroppedItem({
@@ -175,7 +177,7 @@ define([
           this.droppedItems[itemId].startup();
           // load the resource
           this.handleImage(file, event.layerX, event.layerY, itemId);
-        } else if (file.name.indexOf(".csv") !== -1) {
+        } else if (file.name.indexOf('.csv') !== -1) {
           // create an entry in the DnD widget UI
           this.droppedItems[file.name] = new DroppedItem({
             map: this.map,
@@ -191,28 +193,28 @@ define([
 
       // Textual drop?
       else if (types) {
-        console.log("[ TYPES ]");
-        console.log("  Length = ", types.length);
+        console.log('[ TYPES ]');
+        console.log('  Length = ', types.length);
         array.forEach(types, function(type) {
           if (type) {
-            console.log("  Type: ", type);
-            console.log("  Data: ", dataTransfer.getData(type));
+            console.log('  Type: ', type);
+            console.log('  Data: ', dataTransfer.getData(type));
           }
         });
 
         // We're looking for URLs only.
         var url;
         array.some(types, function(type) {
-          if (type.indexOf("text/uri-list") !== -1) {
-            url = dataTransfer.getData("text/uri-list");
+          if (type.indexOf('text/uri-list') !== -1) {
+            url = dataTransfer.getData('text/uri-list');
             return true;
-          } else if (type.indexOf("text/x-moz-url") !== -1) {
-            url = dataTransfer.getData("text/plain");
+          } else if (type.indexOf('text/x-moz-url') !== -1) {
+            url = dataTransfer.getData('text/plain');
             return true;
-          } else if (type.indexOf("text/plain") !== -1) {
-            url = dataTransfer.getData("text/plain");
-            url = url.replace(/^\s+|\s+$/g, "");
-            if (url.indexOf("http") === 0) {
+          } else if (type.indexOf('text/plain') !== -1) {
+            url = dataTransfer.getData('text/plain');
+            url = url.replace(/^\s+|\s+$/g, '');
+            if (url.indexOf('http') === 0) {
               return true;
             }
           }
@@ -220,11 +222,11 @@ define([
         });
 
         if (url) {
-          url = url.replace(/^\s+|\s+$/g, "");
+          url = url.replace(/^\s+|\s+$/g, '');
           // Check if this URL is a google search result.
           // If so, parse it and extract the actual URL
           // to the search result
-          if (url.indexOf("www.google.com/url") !== -1) {
+          if (url.indexOf('www.google.com/url') !== -1) {
             var obj = urlUtils.urlToObject(url);
             if (obj && obj.query && obj.query.url) {
               url = obj.query.url;
@@ -272,17 +274,17 @@ define([
       }
     },
     handleImage: function(file, x, y, itemId) {
-      console.log("Processing IMAGE: ", file, ", ", file.name, ", ", file.type, ", ", file.size);
+      console.log('Processing IMAGE: ', file, ', ', file.name, ', ', file.type, ', ', file.size);
       var reader = new FileReader();
       reader.onload = lang.hitch(this, function() {
-        console.log("Finished reading the image");
+        console.log('Finished reading the image');
         // Create an image element just to find out the image
         // dimension before adding it as a graphic
-        var img = put("img");
+        var img = put('img');
         img.onload = lang.hitch(this, function() {
           var width = img.width,
             height = img.height;
-          console.log("Image dimensions: ", width, ", ", height);
+          console.log('Image dimensions: ', width, ', ', height);
 
           // Add a graphic with this image as its symbol
           var symbol = new PictureMarkerSymbol(reader.result,
@@ -320,7 +322,7 @@ define([
       }
     },
     handleMapServer: function(url) {
-      console.log("Processing MS: ", url);
+      console.log('Processing MS: ', url);
       var layer = new ArcGISDynamicMapServiceLayer(url, {
         opacity: 0.75,
         id: url
@@ -329,18 +331,18 @@ define([
       return layer;
     },
     handleFeatureLayer: function(url) {
-      console.log("Processing FL: ", url);
+      console.log('Processing FL: ', url);
       var layer = new FeatureLayer(url, {
         opacity: 0.75,
         mode: FeatureLayer.MODE_ONDEMAND,
-        infoTemplate: new InfoTemplate(null, "${*}"),
+        infoTemplate: new InfoTemplate(null, '${*}'),
         id: url
       });
       this.map.addLayer(layer);
       return layer;
     },
     handleImageService: function(url) {
-      console.log("Processing IS: ", url);
+      console.log('Processing IS: ', url);
       var layer = new ArcGISImageServiceLayer(url, {
         opacity: 0.75,
         id: url
@@ -349,14 +351,14 @@ define([
       return layer;
     },
     handleCSV: function(file) {
-      console.log("Processing CSV: ", file, ", ", file.name, ", ", file.type, ", ", file.size);
+      console.log('Processing CSV: ', file, ', ', file.name, ', ', file.type, ', ', file.size);
       if (file.data) {
         var decoded = this.bytesToString(base64.decode(file.data));
         this.processCSVData(decoded, file.name);
       } else {
         var reader = new FileReader();
         reader.onload = lang.hitch(this, function() {
-          console.log("Finished reading CSV data");
+          console.log('Finished reading CSV data');
           this.processCSVData(reader.result, file.name);
         });
         reader.onprogress = function(evt) {
@@ -366,15 +368,15 @@ define([
       }
     },
     bytesToString: function(b) {
-      console.log("bytes to string");
+      console.log('bytes to string');
       var s = [];
       array.forEach(b, function(c) {
         s.push(String.fromCharCode(c));
       });
-      return s.join("");
+      return s.join('');
     },
     processCSVData: function(data, filename) {
-      var newLineIndex = data.indexOf("\n");
+      var newLineIndex = data.indexOf('\n');
       var firstLine = lang.trim(data.substr(0, newLineIndex)); //remove extra whitespace, not sure if I need to do this since I threw out space delimiters
       var separator = this.getSeparator(firstLine);
       var csvStore = new CsvStore({
@@ -428,8 +430,8 @@ define([
 
             var geometry = webMercatorUtils.geographicToWebMercator(new Point(longitude, latitude));
             var feature = {
-              "geometry": geometry.toJson(),
-              "attributes": attributes
+              'geometry': geometry.toJson(),
+              'attributes': attributes
             };
             featureCollection.featureSet.features.push(feature);
           }));
@@ -443,14 +445,14 @@ define([
           this.zoomToData(featureLayer);
         }),
         onError: function(error) {
-          console.error("Error fetching items from CSV store: ", error);
+          console.error('Error fetching items from CSV store: ', error);
         }
       });
     },
     getSeparator: function(string) {
-      var separators = [",", "      ", ";", "|"];
+      var separators = [',', '      ', ';', '|'];
       var maxSeparatorLength = 0;
-      var maxSeparatorValue = "";
+      var maxSeparatorValue = '';
       array.forEach(separators, function(separator) {
         var length = string.split(separator).length;
         if (length > maxSeparatorLength) {
@@ -463,41 +465,41 @@ define([
     generateFeatureCollectionTemplateCSV: function(store, items) {
       //create a feature collection for the input csv file
       var featureCollection = {
-        "layerDefinition": null,
-        "featureSet": {
-          "features": [],
-          "geometryType": "esriGeometryPoint"
+        'layerDefinition': null,
+        'featureSet': {
+          'features': [],
+          'geometryType': 'esriGeometryPoint'
         }
       };
       featureCollection.layerDefinition = {
-        "geometryType": "esriGeometryPoint",
-        "objectIdField": "__OBJECTID",
-        "type": "Feature Layer",
-        "typeIdField": "",
-        "drawingInfo": {
-          "renderer": {
-            "type": "simple",
-            "symbol": {
-              "type": "esriPMS",
-              "url": "",
-              "imageData": "iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDozODQzQzc1OTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDozODQzQzc1QTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkY2REQ1M0IyM0U5ODExRTNBODkyQkZFRUNBRDE2RTdFIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjM4NDNDNzU4M0U5QjExRTNBODkyQkZFRUNBRDE2RTdFIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+3zhYuAAAA29JREFUeNrMmM9rE1EQx2fTbH71R1Laiq3U9iCi4I8WQRA8tBRPCu3Ri6AeBL0U8e9Qbx70YEFpe/FH0SJYSouKglYrtoJUD40hadMkNmnapPmxqTP1rTy3+zbZTYoZ+LKbfbzdz87Mm50XaWtrC6rJbFBlVnVAkvZCe9+NATz0ozpRPTpzplGLqLHA5M2n5TxcL10kDchtR31zp8u3F2S3F/B8x4RsMgq5dAI248t0TmDXrYIJgRDmouzx3vd2dAMedSen4hGQJAlsNXaQUHaHC5TMBiT8s5BLJS4h1FBFgBCmx1YjT7UcPYMPk4WTCUhrdqcbwZwQmZuAgpLrRajpcoEoqQcb2o8Ywogsn0mDkssBzaf7VGqVDTh9rZZvkM+kgM0fqNiyt+Id3u3lzN+RBqKBercdzp/eB2dP7IHWRheEYikYe+eHB5M/IJnK7Vodsotg7lw5Bgfbav9ea2vywNVzh6H3eBtcvvXKCEoSOdNypSbP8DC8HWr3woW+A6L7uVEeTvTbhXKiHMwBNtNAFCYj6z/VIRpqRHmZGsjZqDpULQdIcLLIk7oho5wxMgqfwJpZaEgFpjxKYUeKcxaVYWNKSUBLq5uGUJTgAmvhHqSFyTOYFAPeLDlk4x9XDD1Eq01gar6oOaOeu5hqmSRRkusCjb4JwkJoQ/eJ3wKJ7aUvMAeTrCN1DJh3CiXnUDKdh2t3v1ipQzJ7SRsXKhsngkiKwmVYGAnq3oR/W6KPaxEgPbBVpoJpIIumB6SKcoDeKm3p02HRHIJQURL/QsWKVezd9JDCwVHehFj9gf8FxCdyiHkHqgFoCRVgntp9IOqzNTnE50+G7VDiZhq0z/HFWcswzjof0Hwlsx7WFEB62SDKb7TM9YB607GfpqFUmLXAHKwHv66EPwyPairzOmqBHUtvYXGnEDcL9S/MfDQ8M/xEySQLHAzF8TvLHfM9tRkoHiYZnI+FZ0aeY7gKXLiiqMeoqVKWuWG7iXs0H93I3bS/y9fZrbtR5GFWZkaeIUxW7UpQL1CfSl1RhlvpYlDpRFQEE2Eg71kDVpm9fTGogpLXwlB9eYl6yxqvyv7ZUAyKcusPzOhDTOBxHHtt1EZUHIiHqnF4unIbMX9k9tFgNhmeYG1o2Sba2wtNXX1KNjWUXVs+iTBjlYIR2W8BBgB+dqgi6ZiY/wAAAABJRU5ErkJggg==",
-              "contentType": "image/png",
-              "width": this.iconSize,
-              "height": this.iconSize,
-              "xoffset": 7,
-              "yoffset": 11
+        'geometryType': 'esriGeometryPoint',
+        'objectIdField': '__OBJECTID',
+        'type': 'Feature Layer',
+        'typeIdField': '',
+        'drawingInfo': {
+          'renderer': {
+            'type': 'simple',
+            'symbol': {
+              'type': 'esriPMS',
+              'url': '',
+              'imageData': 'iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDozODQzQzc1OTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDozODQzQzc1QTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkY2REQ1M0IyM0U5ODExRTNBODkyQkZFRUNBRDE2RTdFIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjM4NDNDNzU4M0U5QjExRTNBODkyQkZFRUNBRDE2RTdFIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+3zhYuAAAA29JREFUeNrMmM9rE1EQx2fTbH71R1Laiq3U9iCi4I8WQRA8tBRPCu3Ri6AeBL0U8e9Qbx70YEFpe/FH0SJYSouKglYrtoJUD40hadMkNmnapPmxqTP1rTy3+zbZTYoZ+LKbfbzdz87Mm50XaWtrC6rJbFBlVnVAkvZCe9+NATz0ozpRPTpzplGLqLHA5M2n5TxcL10kDchtR31zp8u3F2S3F/B8x4RsMgq5dAI248t0TmDXrYIJgRDmouzx3vd2dAMedSen4hGQJAlsNXaQUHaHC5TMBiT8s5BLJS4h1FBFgBCmx1YjT7UcPYMPk4WTCUhrdqcbwZwQmZuAgpLrRajpcoEoqQcb2o8Ywogsn0mDkssBzaf7VGqVDTh9rZZvkM+kgM0fqNiyt+Id3u3lzN+RBqKBercdzp/eB2dP7IHWRheEYikYe+eHB5M/IJnK7Vodsotg7lw5Bgfbav9ea2vywNVzh6H3eBtcvvXKCEoSOdNypSbP8DC8HWr3woW+A6L7uVEeTvTbhXKiHMwBNtNAFCYj6z/VIRpqRHmZGsjZqDpULQdIcLLIk7oho5wxMgqfwJpZaEgFpjxKYUeKcxaVYWNKSUBLq5uGUJTgAmvhHqSFyTOYFAPeLDlk4x9XDD1Eq01gar6oOaOeu5hqmSRRkusCjb4JwkJoQ/eJ3wKJ7aUvMAeTrCN1DJh3CiXnUDKdh2t3v1ipQzJ7SRsXKhsngkiKwmVYGAnq3oR/W6KPaxEgPbBVpoJpIIumB6SKcoDeKm3p02HRHIJQURL/QsWKVezd9JDCwVHehFj9gf8FxCdyiHkHqgFoCRVgntp9IOqzNTnE50+G7VDiZhq0z/HFWcswzjof0Hwlsx7WFEB62SDKb7TM9YB607GfpqFUmLXAHKwHv66EPwyPairzOmqBHUtvYXGnEDcL9S/MfDQ8M/xEySQLHAzF8TvLHfM9tRkoHiYZnI+FZ0aeY7gKXLiiqMeoqVKWuWG7iXs0H93I3bS/y9fZrbtR5GFWZkaeIUxW7UpQL1CfSl1RhlvpYlDpRFQEE2Eg71kDVpm9fTGogpLXwlB9eYl6yxqvyv7ZUAyKcusPzOhDTOBxHHtt1EZUHIiHqnF4unIbMX9k9tFgNhmeYG1o2Sba2wtNXX1KNjWUXVs+iTBjlYIR2W8BBgB+dqgi6ZiY/wAAAABJRU5ErkJggg==',
+              'contentType': 'image/png',
+              'width': this.iconSize,
+              'height': this.iconSize,
+              'xoffset': 7,
+              'yoffset': 11
             }
           }
         },
-        "fields": [{
-          "name": "__OBJECTID",
-          "alias": "__OBJECTID",
-          "type": "esriFieldTypeOID",
-          "editable": false,
-          "domain": null
+        'fields': [{
+          'name': '__OBJECTID',
+          'alias': '__OBJECTID',
+          'type': 'esriFieldTypeOID',
+          'editable': false,
+          'domain': null
         }],
-        "types": [],
-        "capabilities": "Query"
+        'types': [],
+        'capabilities': 'Query'
       };
 
       var fields = store.getAttributes(items[0]);
@@ -506,19 +508,19 @@ define([
         var parsedValue = Number(value);
         if (isNaN(parsedValue)) { //check first value and see if it is a number
           featureCollection.layerDefinition.fields.push({
-            "name": field,
-            "alias": field,
-            "type": "esriFieldTypeString",
-            "editable": true,
-            "domain": null
+            'name': field,
+            'alias': field,
+            'type': 'esriFieldTypeString',
+            'editable': true,
+            'domain': null
           });
         } else {
           featureCollection.layerDefinition.fields.push({
-            "name": field,
-            "alias": field,
-            "type": "esriFieldTypeDouble",
-            "editable": true,
-            "domain": null
+            'name': field,
+            'alias': field,
+            'type': 'esriFieldTypeDouble',
+            'editable': true,
+            'domain': null
           });
         }
       }));
@@ -540,21 +542,21 @@ define([
       var displayField = null;
       var fieldInfos = array.map(fields,
         lang.hitch(this, function(item) {
-          if (item.name.toUpperCase() === "NAME") {
+          if (item.name.toUpperCase() === 'NAME') {
             displayField = item.name;
           }
-          var visible = (item.type !== "esriFieldTypeOID" &&
-            item.type !== "esriFieldTypeGlobalID" &&
-            item.type !== "esriFieldTypeGeometry");
+          var visible = (item.type !== 'esriFieldTypeOID' &&
+            item.type !== 'esriFieldTypeGlobalID' &&
+            item.type !== 'esriFieldTypeGeometry');
           var format = null;
           if (visible) {
             var f = item.name.toLowerCase();
-            var hideFieldsStr = ",stretched value,fnode_,tnode_,lpoly_,rpoly_,poly_,subclass,subclass_,rings_ok,rings_nok,";
-            if (hideFieldsStr.indexOf("," + f + ",") > -1 ||
-              f.indexOf("area") > -1 || f.indexOf("length") > -1 ||
-              f.indexOf("shape") > -1 || f.indexOf("perimeter") > -1 ||
-              f.indexOf("objectid") > -1 || f.indexOf("_") == f.length - 1 ||
-              f.indexOf("_i") == f.length - 2) {
+            var hideFieldsStr = ',stretched value,fnode_,tnode_,lpoly_,rpoly_,poly_,subclass,subclass_,rings_ok,rings_nok,';
+            if (hideFieldsStr.indexOf(',' + f + ',') > -1 ||
+              f.indexOf('area') > -1 || f.indexOf('length') > -1 ||
+              f.indexOf('shape') > -1 || f.indexOf('perimeter') > -1 ||
+              f.indexOf('objectid') > -1 || f.indexOf('_') == f.length - 1 ||
+              f.indexOf('_i') == f.length - 2) {
               visible = false;
             }
             if (item.type in integer) {
@@ -578,7 +580,7 @@ define([
             fieldName: item.name,
             label: item.alias,
             isEditable: false,
-            tooltip: "",
+            tooltip: '',
             visible: visible,
             format: format,
             stringFieldOption: 'textbox'
@@ -596,16 +598,16 @@ define([
     },
     buildInfoTemplate: function(popupInfo) {
       var json = {
-        content: "<table>"
+        content: '<table>'
       };
 
       array.forEach(popupInfo.fieldInfos, function(field) {
         if (field.visible) {
-          json.content += "<tr><td valign='top'>" + field.label +
-            ": <\/td><td valign='top'>${" + field.fieldName + "}<\/td><\/tr>";
+          json.content += '<tr><td valign="top">' + field.label +
+            ': <\/td><td valign="top">${' + field.fieldName + '}<\/td><\/tr>';
         }
       });
-      json.content += "<\/table>";
+      json.content += '<\/table>';
       return json;
     },
     zoomToData: function(featureLayer) {
