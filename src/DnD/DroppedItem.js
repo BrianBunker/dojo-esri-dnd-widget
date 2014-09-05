@@ -95,7 +95,11 @@ define([
         },
         handleAs: 'json',
         callbackParamName: 'callback'
-      }).then(lang.hitch(this, '_handleLoadedServiceInfo', url, targetNode));
+      }).then(lang.hitch(this, '_handleLoadedServiceInfo', url, targetNode), lang.hitch(this, '_handleErrBack', url));
+    },
+    _handleErrBack: function(url) {
+      this.label = 'Unable to add resource from url';
+      this.labelNode.innerHTML = '<span title="' + url + '">' + this.label + '</span>';
     },
     _handleLoadedServiceInfo: function(url, targetNode, info) {
       // set the label on the first item loaded

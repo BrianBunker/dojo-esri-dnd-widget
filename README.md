@@ -26,3 +26,9 @@ Note: doesn't currently support DnD of FeatureServer root directory text (http:/
 Screen from Sample page:
 
 ![Screenshot](https://raw.github.com/BrianBunker/dojo-esri-dnd-widget/master/screenshot.png)
+
+
+TODO
+====
+- Support for Shapefiles (zip with .shp, .shx, .dbf)
+- Support for Image urls (problematic because url doesn't necessarily have file extension and need to request image/convert to base64)
