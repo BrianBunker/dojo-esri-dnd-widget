@@ -2,8 +2,6 @@ dojo-esri-dnd-widget
 =================
 Drag-and-Drop widget for the js api. Adapted from [Drag and drop to display data](https://developers.arcgis.com/javascript/jssamples/exp_dragdrop.html).
 
-[demo](http://brianbunker.github.com/dojo-esri-dnd-widget)
-
 
 ```javascript
 var dndWidget = new DnD({
@@ -22,6 +20,8 @@ Available drag-and-drop sources:
 
 Note: doesn't currently support DnD of FeatureServer root directory text (http://sampleserver6.arcgisonline.com/arcgis/rest/services/Military/FeatureServer).
 
+
+[Click for demo](http://brianbunker.github.com/dojo-esri-dnd-widget)
 
 Screen from Sample page:
 
