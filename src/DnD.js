@@ -102,12 +102,15 @@ define([
           clearTimeout(this.preventDragleaveTimeout);
           this.preventDragleaveTimeout = null;
         }), 200);
-        put(mapCanvas, '.esri-DnD-target');
+        if (!this.hasOwnProperty('overlayNode')) {
+          this.overlayNode = put(mapCanvas, 'div.esri-DnD-target[style="height:' + mapCanvas.offsetHeight  + 'px"]');
+        }
       }));
       on(mapCanvas, 'dragleave', lang.hitch(this, function(event) {
         event.preventDefault();
         if (this.preventDragleaveTimeout === null) {
-          put(mapCanvas, '!esri-DnD-target');
+          put(this.overlayNode, '!');
+          delete this.overlayNode;
         }
       }));
 
@@ -126,12 +129,15 @@ define([
           clearTimeout(this.preventDragleaveTimeout);
           this.preventDragleaveTimeout = null;
         }), 200);
-        put(this.domNode, '.esri-DnD-target');
+        if (!this.hasOwnProperty('overlayNode')) {
+          this.overlayNode = put(this.domNode, 'div.esri-DnD-target[style="height:' + this.domNode.offsetHeight  + 'px"]');
+        }
       }));
       on(this.domNode, 'dragleave', lang.hitch(this, function(event) {
         event.preventDefault();
         if (this.preventDragleaveTimeout === null) {
-          put(this.domNode, '!esri-DnD-target');
+          put(this.overlayNode, '!');
+          delete this.overlayNode;
         }
       }));
 
@@ -142,8 +148,8 @@ define([
     },
     handleDrop: function(event) {
       event.preventDefault();
-      put(this.map.container, '!esri-DnD-target');
-      put(this.domNode, '!esri-DnD-target');
+      put(this.overlayNode, '!');
+      delete this.overlayNode;
 
       if (Object.keys(this.droppedItems).length === 0) {
         put(this.instructionsNode, '.off');
