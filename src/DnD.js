@@ -184,6 +184,9 @@ define([
           // load the resource
           this.handleImage(file, event.layerX, event.layerY, itemId);
         } else if (file.name.indexOf('.csv') !== -1) {
+          if (this.droppedItems[file.name]) {
+            return;
+          }
           // create an entry in the DnD widget UI
           this.droppedItems[file.name] = new DroppedItem({
             map: this.map,
@@ -195,6 +198,9 @@ define([
           // load the resource
           this.handleCSV(file);
         } else if (file.name.indexOf('.zip') !== -1) {
+          if (this.droppedItems[file.name]) {
+            return;
+          }
           // create an entry in the DnD widget UI
           this.droppedItems[file.name] = new DroppedItem({
             map: this.map,
@@ -207,10 +213,6 @@ define([
           this.handleZip(file);
         }
       } else if (types) { // Textual drop?
-        array.forEach(types, function(type) {
-          if (type) {
-          }
-        });
 
         // We're looking for URLs only.
         var url;
@@ -241,6 +243,10 @@ define([
             if (obj && obj.query && obj.query.url) {
               url = obj.query.url;
             }
+          }
+
+          if (this.droppedItems[url]) {
+            return;
           }
 
           // set up layer add listener
@@ -492,7 +498,7 @@ define([
         onComplete: lang.hitch(this, function(items) {
           var objectId = 0;
           var featureCollection = this.generateFeatureCollectionTemplateCSV(csvStore, items);
-          this.droppedItems[filename].setIcon('data:image/png;base64,' + featureCollection.layerDefinition.drawingInfo.renderer.symbol.imageData);
+          this.droppedItems[filename].setIcon('data:image/png;base64,' + featureCollection.layerDefinition.drawingInfo.renderer.symbol.imageData, 32);
           var popupInfo = this.generateDefaultPopupInfo(featureCollection);
           var infoTemplate = new InfoTemplate(this.buildInfoTemplate(popupInfo));
           var latField, longField;
