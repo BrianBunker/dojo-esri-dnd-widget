@@ -71,8 +71,6 @@ define([
       //    Overrides method of same name in dijit._Widget.
       // tags:
       //    private
-      console.log('DnD::postCreate', arguments);
-
       this.droppedItems = {};
       this.layerAddListeners = {};
 
@@ -84,8 +82,6 @@ define([
       // summary:
       //    wire events, and such
       //
-      console.log('DnD::setupConnections', arguments);
-
       this.setupDropZone();
     },
     setupDropZone: function() {
@@ -163,8 +159,6 @@ define([
         put(this.instructionsNode, '.off');
       }
 
-      console.log('Drop: ', event);
-
       // Reference
       // http://www.html5rocks.com/tutorials/file/dndfiles/
       // https://developer.mozilla.org/en/Using_files_from_web_applications
@@ -175,10 +169,8 @@ define([
 
       // File drop?
       if (files && files.length === 1) {
-        console.log('[ FILES ]');
         var file = files[0]; // that's right I'm only reading one file
 
-        console.log('type = ', file.type);
         if (file.type.indexOf('image/') !== -1) {
           // create an entry in the DnD widget UI
           var itemId = file.name + event.layerX + event.layerY;
@@ -203,7 +195,6 @@ define([
           // load the resource
           this.handleCSV(file);
         } else if (file.name.indexOf('.zip') !== -1) {
-          console.log('dropped a zip file');
           // create an entry in the DnD widget UI
           this.droppedItems[file.name] = new DroppedItem({
             map: this.map,
@@ -216,12 +207,8 @@ define([
           this.handleZip(file);
         }
       } else if (types) { // Textual drop?
-        console.log('[ TYPES ]');
-        console.log('  Length = ', types.length);
         array.forEach(types, function(type) {
           if (type) {
-            console.log('  Type: ', type);
-            console.log('  Data: ', dataTransfer.getData(type));
           }
         });
 
@@ -297,17 +284,14 @@ define([
       }
     },
     handleImage: function(file, x, y, itemId) {
-      console.log('Processing IMAGE: ', file, ', ', file.name, ', ', file.type, ', ', file.size);
       var reader = new FileReader();
       reader.onload = lang.hitch(this, function() {
-        console.log('Finished reading the image');
         // Create an image element just to find out the image
         // dimension before adding it as a graphic
         var img = put('img');
         img.onload = lang.hitch(this, function() {
           var width = img.width,
             height = img.height;
-          console.log('Image dimensions: ', width, ', ', height);
 
           // Add a graphic with this image as its symbol
           var symbol = new PictureMarkerSymbol(reader.result,
@@ -325,7 +309,6 @@ define([
         img.src = reader.result;
       });
       reader.onprogress = function(evt) {
-        console.log(evt);
       };
 
       // Note that it's possible to monitor read progress as well:
@@ -334,18 +317,15 @@ define([
       reader.readAsDataURL(file);
     },
     dndLayerAddComplete: function(url, evt) {
-      console.log(url, evt);
       this.layerAddListeners[url].remove();
       this.layerAddListeners[url] = null;
       delete this.layerAddListeners[url];
 
-      console.log(this.droppedItems[url]);
       if (this.droppedItems[url].hasOwnProperty('layer') && this.droppedItems[url].layer.hasOwnProperty('fullExtent')) {
         this.map.setExtent(this.droppedItems[url].layer.fullExtent, true);
       }
     },
     handleMapServer: function(url) {
-      console.log('Processing MS: ', url);
       var layer = new ArcGISDynamicMapServiceLayer(url, {
         opacity: 0.75,
         id: url
@@ -354,7 +334,6 @@ define([
       return layer;
     },
     handleFeatureLayer: function(url) {
-      console.log('Processing FL: ', url);
       var layer = new FeatureLayer(url, {
         opacity: 0.75,
         mode: FeatureLayer.MODE_ONDEMAND,
@@ -365,7 +344,6 @@ define([
       return layer;
     },
     handleImageService: function(url) {
-      console.log('Processing IS: ', url);
       var layer = new ArcGISImageServiceLayer(url, {
         opacity: 0.75,
         id: url
@@ -374,18 +352,15 @@ define([
       return layer;
     },
     handleCSV: function(file) {
-      console.log('Processing CSV: ', file, ', ', file.name, ', ', file.type, ', ', file.size);
       if (file.data) {
         var decoded = this.bytesToString(base64.decode(file.data));
         this.processCSVData(decoded, file.name);
       } else {
         var reader = new FileReader();
         reader.onload = lang.hitch(this, function() {
-          console.log('Finished reading CSV data');
           this.processCSVData(reader.result, file.name);
         });
         reader.onprogress = function(evt) {
-          console.log(evt);
         };
         reader.readAsText(file);
       }
@@ -446,11 +421,9 @@ define([
         this.droppedItems[file.name]._handleErrBack();
         return;
       }
-      console.log(response);
       this.addShapefileToMap(file, response.featureCollection);
     },
     shapefileFailure: function(response) {
-      console.log(response);
       this.droppedItems[file.name]._handleErrBack();
     },
     addShapefileToMap: function(file, featureCollection) {
@@ -480,7 +453,6 @@ define([
       this.map.addLayers(layers);
       this.map.setExtent(fullExtent.expand(1.25), true);
       var patchHTML = this.droppedItems[file.name]._createPatchHTML(null, layers[0].renderer.symbol);
-      console.log(patchHTML);
       this.droppedItems[file.name].setIcon(null, null, patchHTML);
     },
     changeShapefileRenderer: function(layer) {
@@ -501,7 +473,6 @@ define([
       }
     },
     bytesToString: function(b) {
-      console.log('bytes to string');
       var s = [];
       array.forEach(b, function(c) {
         s.push(String.fromCharCode(c));

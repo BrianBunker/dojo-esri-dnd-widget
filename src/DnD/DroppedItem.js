@@ -58,14 +58,18 @@ define([
       'FeatureServer': require.toUrl('./images/warning.png'),
       'MapServer Layer': require.toUrl('./images/map.png'),
       'FeatureServer Layer': require.toUrl('./images/database.png'),
-      'ImageServer': require.toUrl('./images/images.png')
+      'ImageServer': require.toUrl('./images/images.png'),
+      'loading': require.toUrl('./images/loading.gif')
     },
 
     postCreate: function() {
       if (this.hasOwnProperty('serviceType') && this.serviceType === 'FeatureServer') {
         this.setIcon(this.serviceIcons.FeatureServer, 20);
       } else if (this.hasOwnProperty('url') && this.url !== '') {
+        this.setIcon(this.serviceIcons.loading, 20);
         this._loadServiceInfo(this.url, null);
+      } else {
+        this.setIcon(this.serviceIcons.loading, 20);
       }
     },
     getLabel: function() {
