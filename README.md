@@ -1,6 +1,6 @@
 dojo-esri-dnd-widget
 =================
-Drag-and-Drop widget for the js api. Adapted from [Drag and drop to display data] sample(https://developers.arcgis.com/javascript/jssamples/exp_dragdrop.html).
+Drag-and-Drop widget for the js api. Adapted from [Drag and drop to display data](https://developers.arcgis.com/javascript/jssamples/exp_dragdrop.html) sample.
 
 
 ```javascript
@@ -11,7 +11,7 @@ dndWidget.startup();
 ```
 Available drag-and-drop sources:
 - CSV
-- Shapefile (see [Best Practices](http://doc.arcgis.com/en/arcgis-online/reference/shapefiles.htm#ESRI_SECTION2_913CE2DFA59845C2926B2842F3AB8D66), adapted from [Add shapefile] sample(https://developers.arcgis.com/javascript/jssamples/portal_addshapefile.html))
+- Shapefile (see [Best Practices](http://doc.arcgis.com/en/arcgis-online/reference/shapefiles.htm#ESRI_SECTION2_913CE2DFA59845C2926B2842F3AB8D66), adapted from [Add shapefile](https://developers.arcgis.com/javascript/jssamples/portal_addshapefile.html) sample)
 - Image
 - Text (highlight url and drag-and-drop)
   - MapServer (http://sampleserver6.arcgisonline.com/arcgis/rest/services/Recreation/MapServer)
