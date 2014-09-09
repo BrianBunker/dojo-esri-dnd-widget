@@ -11,6 +11,7 @@ dndWidget.startup();
 ```
 Available drag-and-drop sources:
 - CSV
+- Shapefile (see Best Practices - http://doc.arcgis.com/en/arcgis-online/reference/shapefiles.htm#ESRI_SECTION2_913CE2DFA59845C2926B2842F3AB8D66, adapted from https://developers.arcgis.com/javascript/jssamples/portal_addshapefile.html)
 - Image
 - Text (highlight url and drag-and-drop)
   - MapServer (http://sampleserver6.arcgisonline.com/arcgis/rest/services/Recreation/MapServer)
@@ -30,5 +31,4 @@ Screen from Sample page:
 
 TODO
 ====
-- Support for Shapefiles (zip with .shp, .shx, .dbf)
 - Support for Image urls (problematic because url doesn't necessarily have file extension and need to request image/convert to base64)

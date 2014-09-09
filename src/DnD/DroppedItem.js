@@ -75,7 +75,11 @@ define([
       this.label = newLabel;
       this.labelNode.innerHTML = newLabel;
     },
-    setIcon: function(icon, size) {
+    setIcon: function(icon, size, html) {
+      if (html) {
+        this.iconNode.outerHTML = html;
+        return;
+      }
       put(this.iconNode, '[src=' + icon + ']');
       if (size) {
         put(this.iconNode, '[style=width:' + size + 'px;height:' + size + 'px;padding:' + Math.abs(32 - size) / 2 + 'px;]');
@@ -156,25 +160,31 @@ define([
       if (layerInfo.symbol.type === 'esriPMS') {
         layerHTML += '<img class="iconNode iconPatch" src="data:' + layerInfo.symbol.contentType + ';base64,' + layerInfo.symbol.imageData + '">';
       } else {
-        // create symbol obj from json
-        var symbol = this._createSymbol(layerInfo);
-        // use gfx to create symbol surface/image
-        var docFrag = put('div.iconNode');
-        var surface = gfx.createSurface(docFrag, 32, 32);
-        var descriptors = symbolJsonUtils.getShapeDescriptors(symbol);
-        var shape = surface.createShape(descriptors.defaultShape)
-          .setFill(descriptors.fill)
-          .setStroke(descriptors.stroke);
-        shape.applyTransform({
-          dx: 16,
-          dy: 16
-        });
-        layerHTML += docFrag.outerHTML;
+
+        layerHTML += this._createPatchHTML(layerInfo);
       }
       layerHTML += '<div class="labelNode">' + (layerInfo.label !== '' ? layerInfo.label : 'No label') + '</div>';
       layerHTML += '</div>';
       layerHTML += '<div class="clearer" style="height:5px;"></div>';
       return layerHTML;
+    },
+    _createPatchHTML: function(layerInfo, symbol) {
+      if (!symbol) {
+        // create symbol obj from json
+        symbol = this._createSymbol(layerInfo);
+      }
+      // use gfx to create symbol surface/image
+      var docFrag = put('div.iconNode');
+      var surface = gfx.createSurface(docFrag, 32, 32);
+      var descriptors = symbolJsonUtils.getShapeDescriptors(symbol);
+      var shape = surface.createShape(descriptors.defaultShape)
+        .setFill(descriptors.fill)
+        .setStroke(descriptors.stroke);
+      shape.applyTransform({
+        dx: 16,
+        dy: 16
+      });
+      return docFrag.outerHTML;
     },
     _createSymbol: function(layerInfo) {
       if (layerInfo.hasOwnProperty('symbol') && layerInfo.symbol.hasOwnProperty('type')) {

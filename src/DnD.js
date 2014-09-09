@@ -1,19 +1,26 @@
 define([
   'put-selector',
 
+  'esri/request',
   'esri/graphic',
   'esri/InfoTemplate',
   'esri/urlUtils',
+  'esri/Color',
 
   'esri/geometry/Point',
   'esri/geometry/Multipoint',
   'esri/geometry/webMercatorUtils',
+  'esri/geometry/scaleUtils',
 
   'esri/layers/ArcGISDynamicMapServiceLayer',
   'esri/layers/ArcGISImageServiceLayer',
   'esri/layers/FeatureLayer',
 
   'esri/symbols/PictureMarkerSymbol',
+  'esri/symbols/SimpleLineSymbol',
+  'esri/symbols/SimpleFillSymbol',
+
+  'esri/renderers/SimpleRenderer',
 
   'dojo/_base/array',
   'dojo/_base/declare',
@@ -34,10 +41,11 @@ define([
   './DnD/DroppedItem'
 ], function(
   put,
-  Graphic, InfoTemplate, urlUtils,
-  Point, Multipoint, webMercatorUtils,
+  request, Graphic, InfoTemplate, urlUtils, Color,
+  Point, Multipoint, webMercatorUtils, scaleUtils,
   ArcGISDynamicMapServiceLayer, ArcGISImageServiceLayer, FeatureLayer,
-  PictureMarkerSymbol,
+  PictureMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol,
+  SimpleRenderer,
   array, declare, lang,
   on,
   CsvStore, base64,
@@ -103,7 +111,7 @@ define([
           this.preventDragleaveTimeout = null;
         }), 200);
         if (!this.hasOwnProperty('overlayNode')) {
-          this.overlayNode = put(mapCanvas, 'div.esri-DnD-target[style="height:' + mapCanvas.offsetHeight  + 'px"]');
+          this.overlayNode = put(mapCanvas, 'div.esri-DnD-target[style="height:' + mapCanvas.offsetHeight + 'px"]');
         }
       }));
       on(mapCanvas, 'dragleave', lang.hitch(this, function(event) {
@@ -130,7 +138,7 @@ define([
           this.preventDragleaveTimeout = null;
         }), 200);
         if (!this.hasOwnProperty('overlayNode')) {
-          this.overlayNode = put(this.domNode, 'div.esri-DnD-target[style="height:' + this.domNode.offsetHeight  + 'px"]');
+          this.overlayNode = put(this.domNode, 'div.esri-DnD-target[style="height:' + this.domNode.offsetHeight + 'px"]');
         }
       }));
       on(this.domNode, 'dragleave', lang.hitch(this, function(event) {
@@ -194,11 +202,20 @@ define([
           this.droppedItems[file.name].startup();
           // load the resource
           this.handleCSV(file);
+        } else if (file.name.indexOf('.zip') !== -1) {
+          console.log('dropped a zip file');
+          // create an entry in the DnD widget UI
+          this.droppedItems[file.name] = new DroppedItem({
+            map: this.map,
+            label: file.name,
+            itemId: file.name,
+            removeCallback: lang.hitch(this, 'removeDroppedItem')
+          }).placeAt(this.containerNode);
+          this.droppedItems[file.name].startup();
+          // load the resource
+          this.handleZip(file);
         }
-      }
-
-      // Textual drop?
-      else if (types) {
+      } else if (types) { // Textual drop?
         console.log('[ TYPES ]');
         console.log('  Length = ', types.length);
         array.forEach(types, function(type) {
@@ -268,7 +285,7 @@ define([
           // create an entry in the DnD widget UI
           this.droppedItems[url] = new DroppedItem({
             map: this.map,
-            label: (serviceType !== 'FeatureServer' ? 'Loading url...': 'Only FeatureServer layers allowed'),
+            label: (serviceType !== 'FeatureServer' ? 'Loading url...' : 'Only FeatureServer layers allowed'),
             itemId: url,
             url: url,
             serviceType: serviceType,
@@ -373,6 +390,116 @@ define([
         reader.readAsText(file);
       }
     },
+    handleZip: function(file) {
+      var fileName = file.name;
+      var name = fileName.split(".");
+      //Chrome and IE add c:\fakepath to the value - we need to remove it
+      //See this link for more info: http://davidwalsh.name/fakepath
+      name = name[0].replace("c:\\fakepath\\", "");
+
+      //Define the input params for generate see the rest doc for details
+      //http://www.arcgis.com/apidocs/rest/index.html?generate.html
+      var params = {
+        'name': name,
+        'targetSR': map.spatialReference,
+        'maxRecordCount': 1000,
+        'enforceInputFileSizeLimit': true,
+        'enforceOutputJsonSizeLimit': true
+      };
+
+      //generalize features for display Here we generalize at 1:40,000 which is approx 10 meters
+      //This should work well when using web mercator.
+      var extent = scaleUtils.getExtentForScale(map, 40000);
+      var resolution = extent.getWidth() / map.width;
+      params.generalize = true;
+      params.maxAllowableOffset = resolution;
+      params.reducePrecision = true;
+      params.numberOfDigitsAfterDecimal = 0;
+
+      var myContent = {
+        'filetype': 'shapefile',
+        'publishParameters': JSON.stringify(params),
+        'f': 'json',
+        'callback.html': ''
+      };
+
+      //build FormData for request
+      var formData = null;
+      if (!!window.FormData) {
+        formData = new FormData();
+        formData.append('file', file);
+      }
+
+      //use the rest generate operation to generate a feature collection from the zipped shapefile
+      request({
+        url: 'http://www.arcgis.com/sharing/rest/content/features/generate',
+        content: myContent,
+        form: formData,
+        handleAs: 'json'
+      }).then(
+        lang.hitch(this, 'shapefileResult', file),
+        lang.hitch(this, 'shapefileFailure')
+      );
+    },
+    shapefileResult: function(file, response) {
+      if (response.error) {
+        this.droppedItems[file.name]._handleErrBack();
+        return;
+      }
+      console.log(response);
+      this.addShapefileToMap(file, response.featureCollection);
+    },
+    shapefileFailure: function(response) {
+      console.log(response);
+      this.droppedItems[file.name]._handleErrBack();
+    },
+    addShapefileToMap: function(file, featureCollection) {
+      //add the shapefile to the map and zoom to the feature collection extent
+      //If you want to persist the feature collection when you reload browser you could store the collection in
+      //local storage by serializing the layer using featureLayer.toJson()  see the 'Feature Collection in Local Storage' sample
+      //for an example of how to work with local storage.
+      var fullExtent;
+      var layers = [];
+
+      array.forEach(featureCollection.layers, lang.hitch(this, function(layer) {
+        var infoTemplate = new InfoTemplate("Details", "${*}");
+        var featureLayer = new FeatureLayer(layer, {
+          infoTemplate: infoTemplate,
+          id: file.name
+        });
+        //associate the feature with the popup on click to enable highlight and zoom to
+        featureLayer.on('click', function(event) {
+          map.infoWindow.setFeatures([event.graphic]);
+        });
+        //change default symbol if desired. Comment this out and the layer will draw with the default symbology
+        this.changeShapefileRenderer(featureLayer);
+        fullExtent = fullExtent ?
+          fullExtent.union(featureLayer.fullExtent) : featureLayer.fullExtent;
+        layers.push(featureLayer);
+      }));
+      this.map.addLayers(layers);
+      this.map.setExtent(fullExtent.expand(1.25), true);
+      var patchHTML = this.droppedItems[file.name]._createPatchHTML(null, layers[0].renderer.symbol);
+      console.log(patchHTML);
+      this.droppedItems[file.name].setIcon(null, null, patchHTML);
+    },
+    changeShapefileRenderer: function(layer) {
+      //change the default symbol for the feature collection for polygons and points
+      var symbol = null;
+      switch (layer.geometryType) {
+        case 'esriGeometryPoint':
+          symbol = new PictureMarkerSymbol(this.getPointSymbolInfo());
+          break;
+        case 'esriGeometryPolygon':
+          symbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID,
+            new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,
+              new Color([112, 112, 112]), 1), new Color([136, 136, 136, 0.25]));
+          break;
+      }
+      if (symbol) {
+        layer.setRenderer(new SimpleRenderer(symbol));
+      }
+    },
     bytesToString: function(b) {
       console.log('bytes to string');
       var s = [];
@@ -394,7 +521,7 @@ define([
         onComplete: lang.hitch(this, function(items) {
           var objectId = 0;
           var featureCollection = this.generateFeatureCollectionTemplateCSV(csvStore, items);
-          this.droppedItems[filename].setIcon('data:image/png;base64,' + featureCollection.layerDefinition.drawingInfo.renderer.symbol.imageData); 
+          this.droppedItems[filename].setIcon('data:image/png;base64,' + featureCollection.layerDefinition.drawingInfo.renderer.symbol.imageData);
           var popupInfo = this.generateDefaultPopupInfo(featureCollection);
           var infoTemplate = new InfoTemplate(this.buildInfoTemplate(popupInfo));
           var latField, longField;
@@ -485,16 +612,7 @@ define([
         'drawingInfo': {
           'renderer': {
             'type': 'simple',
-            'symbol': {
-              'type': 'esriPMS',
-              'url': '',
-              'imageData': 'iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDozODQzQzc1OTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDozODQzQzc1QTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkY2REQ1M0IyM0U5ODExRTNBODkyQkZFRUNBRDE2RTdFIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjM4NDNDNzU4M0U5QjExRTNBODkyQkZFRUNBRDE2RTdFIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+3zhYuAAAA29JREFUeNrMmM9rE1EQx2fTbH71R1Laiq3U9iCi4I8WQRA8tBRPCu3Ri6AeBL0U8e9Qbx70YEFpe/FH0SJYSouKglYrtoJUD40hadMkNmnapPmxqTP1rTy3+zbZTYoZ+LKbfbzdz87Mm50XaWtrC6rJbFBlVnVAkvZCe9+NATz0ozpRPTpzplGLqLHA5M2n5TxcL10kDchtR31zp8u3F2S3F/B8x4RsMgq5dAI248t0TmDXrYIJgRDmouzx3vd2dAMedSen4hGQJAlsNXaQUHaHC5TMBiT8s5BLJS4h1FBFgBCmx1YjT7UcPYMPk4WTCUhrdqcbwZwQmZuAgpLrRajpcoEoqQcb2o8Ywogsn0mDkssBzaf7VGqVDTh9rZZvkM+kgM0fqNiyt+Id3u3lzN+RBqKBercdzp/eB2dP7IHWRheEYikYe+eHB5M/IJnK7Vodsotg7lw5Bgfbav9ea2vywNVzh6H3eBtcvvXKCEoSOdNypSbP8DC8HWr3woW+A6L7uVEeTvTbhXKiHMwBNtNAFCYj6z/VIRpqRHmZGsjZqDpULQdIcLLIk7oho5wxMgqfwJpZaEgFpjxKYUeKcxaVYWNKSUBLq5uGUJTgAmvhHqSFyTOYFAPeLDlk4x9XDD1Eq01gar6oOaOeu5hqmSRRkusCjb4JwkJoQ/eJ3wKJ7aUvMAeTrCN1DJh3CiXnUDKdh2t3v1ipQzJ7SRsXKhsngkiKwmVYGAnq3oR/W6KPaxEgPbBVpoJpIIumB6SKcoDeKm3p02HRHIJQURL/QsWKVezd9JDCwVHehFj9gf8FxCdyiHkHqgFoCRVgntp9IOqzNTnE50+G7VDiZhq0z/HFWcswzjof0Hwlsx7WFEB62SDKb7TM9YB607GfpqFUmLXAHKwHv66EPwyPairzOmqBHUtvYXGnEDcL9S/MfDQ8M/xEySQLHAzF8TvLHfM9tRkoHiYZnI+FZ0aeY7gKXLiiqMeoqVKWuWG7iXs0H93I3bS/y9fZrbtR5GFWZkaeIUxW7UpQL1CfSl1RhlvpYlDpRFQEE2Eg71kDVpm9fTGogpLXwlB9eYl6yxqvyv7ZUAyKcusPzOhDTOBxHHtt1EZUHIiHqnF4unIbMX9k9tFgNhmeYG1o2Sba2wtNXX1KNjWUXVs+iTBjlYIR2W8BBgB+dqgi6ZiY/wAAAABJRU5ErkJggg==',
-              'contentType': 'image/png',
-              'width': this.iconSize,
-              'height': this.iconSize,
-              'xoffset': 7,
-              'yoffset': 11
-            }
+            'symbol': this.getPointSymbolInfo()
           }
         },
         'fields': [{
@@ -531,6 +649,18 @@ define([
         }
       }));
       return featureCollection;
+    },
+    getPointSymbolInfo: function() {
+      return {
+        'type': 'esriPMS',
+        'url': '',
+        'imageData': 'iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDozODQzQzc1OTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDozODQzQzc1QTNFOUIxMUUzQTg5MkJGRUVDQUQxNkU3RSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkY2REQ1M0IyM0U5ODExRTNBODkyQkZFRUNBRDE2RTdFIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjM4NDNDNzU4M0U5QjExRTNBODkyQkZFRUNBRDE2RTdFIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+3zhYuAAAA29JREFUeNrMmM9rE1EQx2fTbH71R1Laiq3U9iCi4I8WQRA8tBRPCu3Ri6AeBL0U8e9Qbx70YEFpe/FH0SJYSouKglYrtoJUD40hadMkNmnapPmxqTP1rTy3+zbZTYoZ+LKbfbzdz87Mm50XaWtrC6rJbFBlVnVAkvZCe9+NATz0ozpRPTpzplGLqLHA5M2n5TxcL10kDchtR31zp8u3F2S3F/B8x4RsMgq5dAI248t0TmDXrYIJgRDmouzx3vd2dAMedSen4hGQJAlsNXaQUHaHC5TMBiT8s5BLJS4h1FBFgBCmx1YjT7UcPYMPk4WTCUhrdqcbwZwQmZuAgpLrRajpcoEoqQcb2o8Ywogsn0mDkssBzaf7VGqVDTh9rZZvkM+kgM0fqNiyt+Id3u3lzN+RBqKBercdzp/eB2dP7IHWRheEYikYe+eHB5M/IJnK7Vodsotg7lw5Bgfbav9ea2vywNVzh6H3eBtcvvXKCEoSOdNypSbP8DC8HWr3woW+A6L7uVEeTvTbhXKiHMwBNtNAFCYj6z/VIRpqRHmZGsjZqDpULQdIcLLIk7oho5wxMgqfwJpZaEgFpjxKYUeKcxaVYWNKSUBLq5uGUJTgAmvhHqSFyTOYFAPeLDlk4x9XDD1Eq01gar6oOaOeu5hqmSRRkusCjb4JwkJoQ/eJ3wKJ7aUvMAeTrCN1DJh3CiXnUDKdh2t3v1ipQzJ7SRsXKhsngkiKwmVYGAnq3oR/W6KPaxEgPbBVpoJpIIumB6SKcoDeKm3p02HRHIJQURL/QsWKVezd9JDCwVHehFj9gf8FxCdyiHkHqgFoCRVgntp9IOqzNTnE50+G7VDiZhq0z/HFWcswzjof0Hwlsx7WFEB62SDKb7TM9YB607GfpqFUmLXAHKwHv66EPwyPairzOmqBHUtvYXGnEDcL9S/MfDQ8M/xEySQLHAzF8TvLHfM9tRkoHiYZnI+FZ0aeY7gKXLiiqMeoqVKWuWG7iXs0H93I3bS/y9fZrbtR5GFWZkaeIUxW7UpQL1CfSl1RhlvpYlDpRFQEE2Eg71kDVpm9fTGogpLXwlB9eYl6yxqvyv7ZUAyKcusPzOhDTOBxHHtt1EZUHIiHqnF4unIbMX9k9tFgNhmeYG1o2Sba2wtNXX1KNjWUXVs+iTBjlYIR2W8BBgB+dqgi6ZiY/wAAAABJRU5ErkJggg==',
+        'contentType': 'image/png',
+        'width': this.iconSize,
+        'height': this.iconSize,
+        'xoffset': 7,
+        'yoffset': 11
+      };
     },
     generateDefaultPopupInfo: function(featureCollection) {
       var fields = featureCollection.layerDefinition.fields;
