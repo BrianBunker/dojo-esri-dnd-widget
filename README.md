@@ -23,6 +23,7 @@ Note: doesn't currently support DnD of FeatureServer root directory text (http:/
 
 
 [Click for demo](http://brianbunker.github.com/dojo-esri-dnd-widget)
+
 [Download demo csv, shapefiles, and image](./sampledata)
 
 Screen from Sample page:
