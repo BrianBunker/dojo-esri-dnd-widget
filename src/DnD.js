@@ -406,16 +406,16 @@ define([
     },
     handleZip: function(file) {
       var fileName = file.name;
-      var name = fileName.split(".");
+      var name = fileName.split('.');
       //Chrome and IE add c:\fakepath to the value - we need to remove it
       //See this link for more info: http://davidwalsh.name/fakepath
-      name = name[0].replace("c:\\fakepath\\", "");
+      name = name[0].replace('c:\\fakepath\\', '');
 
       //Define the input params for generate see the rest doc for details
       //http://www.arcgis.com/apidocs/rest/index.html?generate.html
       var params = {
         'name': name,
-        'targetSR': map.spatialReference,
+        'targetSR': this.map.spatialReference,
         'maxRecordCount': 1000,
         'enforceInputFileSizeLimit': true,
         'enforceOutputJsonSizeLimit': true
@@ -423,8 +423,8 @@ define([
 
       //generalize features for display Here we generalize at 1:40,000 which is approx 10 meters
       //This should work well when using web mercator.
-      var extent = scaleUtils.getExtentForScale(map, 40000);
-      var resolution = extent.getWidth() / map.width;
+      var extent = scaleUtils.getExtentForScale(this.map, 40000);
+      var resolution = extent.getWidth() / this.map.width;
       params.generalize = true;
       params.maxAllowableOffset = resolution;
       params.reducePrecision = true;
@@ -452,7 +452,7 @@ define([
         handleAs: 'json'
       }).then(
         lang.hitch(this, 'shapefileResult', file),
-        lang.hitch(this, 'shapefileFailure')
+        lang.hitch(this, 'shapefileFailure', file)
       );
     },
     shapefileResult: function(file, response) {
@@ -462,7 +462,7 @@ define([
       }
       this.addShapefileToMap(file, response.featureCollection);
     },
-    shapefileFailure: function(response) {
+    shapefileFailure: function(file, response) {
       this.droppedItems[file.name]._handleErrBack();
     },
     addShapefileToMap: function(file, featureCollection) {
@@ -474,15 +474,15 @@ define([
       var layers = [];
 
       array.forEach(featureCollection.layers, lang.hitch(this, function(layer) {
-        var infoTemplate = new InfoTemplate("Details", "${*}");
+        var infoTemplate = new InfoTemplate('Details', '${*}');
         var featureLayer = new FeatureLayer(layer, {
           infoTemplate: infoTemplate,
           id: file.name
         });
         //associate the feature with the popup on click to enable highlight and zoom to
-        featureLayer.on('click', function(event) {
-          map.infoWindow.setFeatures([event.graphic]);
-        });
+        featureLayer.on('click', lang.hitch(this, function(event) {
+          this.map.infoWindow.setFeatures([event.graphic]);
+        }));
         //change default symbol if desired. Comment this out and the layer will draw with the default symbology
         this.changeShapefileRenderer(featureLayer);
         fullExtent = fullExtent ?
