@@ -5,7 +5,8 @@ Drag-and-Drop widget for the js api. Adapted from [Drag and drop to display data
 
 ```javascript
 var dndWidget = new DnD({
-	map: this.map //reference to the jsapi map object
+	map: this.map, //reference to the jsapi map object
+	showManualAdd: true //or false to show the file picker and url textbox
 }, "referenceNode");
 dndWidget.startup();
 ```
@@ -28,9 +29,10 @@ Note: doesn't currently support DnD of FeatureServer root directory text (http:/
 
 Screen from Sample page:
 
-![Screenshot](https://raw.github.com/BrianBunker/dojo-esri-dnd-widget/master/screenshot.png)
+![Screenshot](./screenshot.png)
 
 
 TODO
 ====
 - Support for Image urls (problematic because url doesn't necessarily have file extension and need to request image/convert to base64)
+- Add multiple files to the map at once

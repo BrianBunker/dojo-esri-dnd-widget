@@ -108,6 +108,7 @@ define([
     _handleErrBack: function(url) {
       this.label = 'Unable to add resource from url';
       this.labelNode.innerHTML = '<span title="' + url + '">' + this.label + '</span>';
+      this.setIcon(this.serviceIcons.FeatureServer, 20);
     },
     _handleLoadedServiceInfo: function(url, targetNode, info) {
       // set the label on the first item loaded

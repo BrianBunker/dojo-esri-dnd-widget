@@ -66,6 +66,7 @@ define([
     latFieldStrings: ['lat', 'latitude', 'y', 'ycenter'],
     longFieldStrings: ['lon', 'long', 'longitude', 'x', 'xcenter'],
     iconSize: 23,
+    showManualAdd: true,
     postCreate: function() {
       // summary:
       //    Overrides method of same name in dijit._Widget.
@@ -74,15 +75,15 @@ define([
       this.droppedItems = {};
       this.layerAddListeners = {};
 
-      this.setupConnections();
+      this.setupDropZone();
+      this.determineShowManualAdd();
 
       this.inherited(arguments);
     },
-    setupConnections: function() {
-      // summary:
-      //    wire events, and such
-      //
-      this.setupDropZone();
+    determineShowManualAdd: function() {
+      if (!this.showManualAdd) {
+        put(this.manualResourceAdd, '.off');
+      }
     },
     setupDropZone: function() {
       // Let's verify that we have proper browser support, before
@@ -149,6 +150,40 @@ define([
         event.preventDefault();
       }));
       on(this.domNode, 'drop', lang.hitch(this, 'handleDrop'));
+
+      on(this.manualAddButton, 'click', lang.hitch(this, 'handleManualAdd'));
+    },
+    handleManualAdd: function() {
+      this.overlayNode = put('div');
+      var evt = {};
+      if (this.fileInputNode.files.length !== 0) {
+        var types = {};
+        array.forEach(this.fileInputNode.files, function(file) {
+          types[file.type] = file.type;
+        });
+        evt = {
+          dataTransfer: {
+            files: this.fileInputNode.files,
+            types: Object.keys(types)
+          },
+          preventDefault: function() {}
+        };
+        lang.hitch(this, this.handleDrop(evt));
+        this.fileInputNode.value = null;
+      } else if (this.serviceUrlInputNode.value !== '') {
+        evt = {
+          dataTransfer: {
+            files: null,
+            types: ['text/uri-list'],
+            getData: lang.hitch(this, function() {
+              return this.serviceUrlInputNode.value;
+            })
+          },
+          preventDefault: function() {}
+        };
+        lang.hitch(this, this.handleDrop(evt));
+        this.serviceUrlInputNode.value = null;
+      }
     },
     handleDrop: function(event) {
       event.preventDefault();
@@ -314,8 +349,7 @@ define([
 
         img.src = reader.result;
       });
-      reader.onprogress = function(evt) {
-      };
+      reader.onprogress = function(evt) {};
 
       // Note that it's possible to monitor read progress as well:
       // http://www.html5rocks.com/tutorials/file/dndfiles/#toc-monitoring-progress
@@ -366,8 +400,7 @@ define([
         reader.onload = lang.hitch(this, function() {
           this.processCSVData(reader.result, file.name);
         });
-        reader.onprogress = function(evt) {
-        };
+        reader.onprogress = function(evt) {};
         reader.readAsText(file);
       }
     },
@@ -758,6 +791,11 @@ define([
           delete this.droppedItems[itemId];
         }
       }));
+
+      // maybe it's erroneously still on the dropped items object
+      if (this.droppedItems[itemId]) {
+        delete this.droppedItems[itemId];
+      }
 
       if (Object.keys(this.droppedItems).length === 0) {
         put(this.instructionsNode, '!off');
