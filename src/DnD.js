@@ -207,8 +207,13 @@ define([
         var file = files[0]; // that's right I'm only reading one file
 
         if (file.type.indexOf('image/') !== -1) {
+          // get offset distance from top left corner of map container
+          var topOffset = this.map.position.y;
+          var leftOffset = this.map.position.x;
+          var yPos = event.layerY - topOffset;
+          var xPos = event.layerX - leftOffset;
           // create an entry in the DnD widget UI
-          var itemId = file.name + event.layerX + event.layerY;
+          var itemId = file.name + xPos + yPos;
           this.droppedItems[itemId] = new DroppedItem({
             map: this.map,
             label: file.name,
@@ -217,7 +222,7 @@ define([
           }).placeAt(this.containerNode);
           this.droppedItems[itemId].startup();
           // load the resource
-          this.handleImage(file, event.layerX, event.layerY, itemId);
+          this.handleImage(file, xPos, yPos, itemId);
         } else if (file.name.indexOf('.csv') !== -1) {
           if (this.droppedItems[file.name]) {
             return;
