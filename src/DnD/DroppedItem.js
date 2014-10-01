@@ -3,8 +3,6 @@ define([
 
   'esri/request',
 
-  'esri/geometry/Extent',
-
   'esri/symbols/jsonUtils',
   'esri/symbols/SimpleFillSymbol',
   'esri/symbols/SimpleLineSymbol',
@@ -13,8 +11,6 @@ define([
   'dojo/_base/array',
   'dojo/_base/declare',
   'dojo/_base/lang',
-
-  'dojo/on',
 
   'dijit/_WidgetBase',
   'dijit/_TemplatedMixin',
