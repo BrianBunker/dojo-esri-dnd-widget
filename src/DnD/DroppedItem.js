@@ -23,19 +23,19 @@ define([
   'dojox/gfx',
 
   'dojo/text!./templates/DroppedItem.html',
-  'xstyle/css!./css/DroppedItem.css',
 
-  'require'
+  'require',
+
+  //not referenced
+  'xstyle/css!./css/DroppedItem.css'
 ], function(
   put,
   esriRequest,
-  Extent,
   symbolJsonUtils, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol,
   array, declare, lang,
-  on,
   _WidgetBase, _TemplatedMixin, _WidgetsInTemplateMixin,
   gfx,
-  template, css,
+  template,
   require
 ) {
   return declare([_WidgetBase, _TemplatedMixin, _WidgetsInTemplateMixin], {
@@ -133,6 +133,7 @@ define([
         //  the layers
         if (info.hasOwnProperty('layers') && info.layers.length >= 1) {
           array.forEach(info.layers, lang.hitch(this, function(layer, i) {
+            layer = layer; // use layer var to stop js lint warning
             this._loadServiceInfo(url + '/' + i, this.containerNode);
           }));
         } else if (info.hasOwnProperty('drawingInfo')) {
